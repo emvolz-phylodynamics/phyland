@@ -1,0 +1,11 @@
+Package: phyland
+Type: Package
+Title: Simple and fast phylogeographic analysis in R using structured coalescent models
+Version: 1.0
+Date: 2017-09-06
+Author: Erik Volz and Simon Frost
+Maintainer: Erik Volz <erik.volz@gmail.com>
+Description: This package extends the phydynR package to implement classic 'island' models for migration of lineages between discrete demes. Typical usage would involve using a dated tree and location of sampling for each lineage to infer migration rates between different spatial locations. 
+Depends: phydynR,bbmle
+License: MIT
+RoxygenNote: 6.0.1
