@@ -4,12 +4,14 @@
 \alias{confint.phylandml}
 \title{Profile confidence intervals for fitted phylogeographic model}
 \usage{
-confint.phylandml(fit, whichparms, tol.newmin = 0.1, ...)
+confint.phylandml(fit, whichparms, ncpu = 1, tol.newmin = 0.1, ...)
 }
 \arguments{
 \item{fit}{A fited model of class *phylandml*}
 
 \item{whichparms}{A vector of type character naming parameters to be profiled. A single parameter is allowed}
+
+\item{ncpu}{Will spread the profiling job across multiple processing units of ncpu > 1}
 
 \item{tol.newmin}{Tolerance in log likelihood units for detecting better optima}
 

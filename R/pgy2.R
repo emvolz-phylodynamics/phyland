@@ -197,15 +197,20 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 #'
 #' @param fit A fited model of class *phylandml*
 #' @param whichparms A vector of type character naming parameters to be profiled. A single parameter is allowed 
+#' @param ncpu Will spread the profiling job across multiple processing units of ncpu > 1
 #' @param tol.newmin Tolerance in log likelihood units for detecting better optima
 #' @param ... Additional parameters passed to bbmle::confint.mle2
 #' @return A fitted model
-confint.phylandml <- function(fit, whichparms, tol.newmin = .1, ... )
+confint.phylandml <- function(fit, whichparms, ncpu =1, tol.newmin = .1, ... )
 {
-	do.call( 'cbind', 
+	do.call( 'cbind', {
+		if ( ncpu > 1){
+			require(parallel)
+			mclapply( whichparms, function(wp)  .confint.phylandml( fit, whichparm = wp, tol.newmin = tol.newmin, ... ) , mc.cores = floor(ncpu)) 
+		} else{
 			lapply( whichparms, function(wp) .confint.phylandml( fit, whichparm = wp, tol.newmin = tol.newmin, ... ) ) 
-		)
-	
+		}
+	})
 }
 
 summary.phylandml <- function(x, ... )
