@@ -5,7 +5,7 @@
 \title{Maximum likelihood inference of migration rates and effective population size between demes}
 \usage{
 phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
-  design = NULL, method = "BFGS", ...)
+  design = NULL, method = "BFGS", quiet = FALSE, ...)
 }
 \arguments{
 \item{tree}{A time-scaled phylogeny in ape::phylo format}
@@ -17,7 +17,8 @@ phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
 \item{regex}{As an alternative to delimiter/index, the location of sampling can be inferred by matching a regular expression string}
 
 \item{design}{A matrix describing which migration rates to estimate and which migration rates are assumed to be equal. Row and column names should correspond to names of demes. Unique integers should specify rates to estimate. If not provided, all rates will be estimated
-method Optimisation method to be used by optim}
+method Optimisation method to be used by optim
+quiet If TRUE, will suppress likelihood printing to stdout}
 
 \item{...}{Additional parameters passed to optim}
 }

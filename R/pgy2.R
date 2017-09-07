@@ -192,6 +192,14 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	}) -> ci0
 	data.frame( setNames( list( exp(ci0) ) , whichparm ) )
 }
+
+#' Profile confidence intervals for fitted phylogeographic model 
+#'
+#' @param fit A fited model of class *phylandml*
+#' @param whichparms A vector of type character naming parameters to be profiled. A single parameter is allowed 
+#' @param tol.newmin Tolerance in log likelihood units for detecting better optima
+#' @param ... Additional parameters passed to bbmle::confint.mle2
+#' @return A fitted model
 confint.phylandml <- function(fit, whichparms, tol.newmin = .1, ... )
 {
 	do.call( 'cbind', 
