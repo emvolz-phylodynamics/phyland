@@ -71,10 +71,12 @@ library(bbmle)
 #' @param regex As an alternative to delimiter/index, the location of sampling can be inferred by matching a regular expression string
 #' @param design A matrix describing which migration rates to estimate and which migration rates are assumed to be equal. Row and column names should correspond to names of demes. Unique integers should specify rates to estimate. If not provided, all rates will be estimated
 #' method Optimisation method to be used by optim
+#' quiet If TRUE, will suppress likelihood printing to stdout
 #' @param ... Additional parameters passed to optim
 #' @return A fitted model
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
  , method = 'BFGS'
+ , quiet = FALSE
  , ... )
 {
 	minLL = -Inf
@@ -140,14 +142,13 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		if (any(theta0 < 0)) return(minLL)
 		tfgy <- dm(theta0, x0=NA, t0, t1 )
 		o <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=FALSE, step_size_res=10)
-		print( c( o, theta0) )
+		if (!quiet) print( c( o, theta0) )
 		if (is.na(o)) return(-minLL)
 		-max(o , minLL)
 	}
 	
 	formals( of0 ) <- theta0
 	
-#~ 	bbmle::mle2( of0 , theta0 , method = 'Nelder-Mead' , optimizer='optim' )
 	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
 	theta1 <- exp( coef(mlefit) )
 	
@@ -181,13 +182,30 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	o
 }
 
-confint.phylandml <- function(fit, whichparm, tol.newmin = .1, ... )
+.confint.phylandml <- function(fit, whichparm, tol.newmin = .1, ... )
 {
+	fit$env$whichparm <- whichparm
+	of0 <- fit$env$of0
 	with( fit$env, {
-		niceNames2dmnames <- setNames( names(dmnames2niceNames), dmnames2niceNames )
-		confint( fit, parm = niceNames2dmnames[whichparm] ,  method = 'uniroot', tol.newmin = .1, ... )
+		nicenames2estnames <- setNames(names(estnames2niceNames), estnames2niceNames)
+		confint( mlefit, parm = nicenames2estnames[whichparm],  method = 'uniroot', tol.newmin = .1, ... )
 	}) -> ci0
-	ci0
+	data.frame( setNames( list( exp(ci0) ) , whichparm ) )
+}
+
+#' Profile confidence intervals for fitted phylogeographic model 
+#'
+#' @param fit A fited model of class *phylandml*
+#' @param whichparms A vector of type character naming parameters to be profiled. A single parameter is allowed 
+#' @param tol.newmin Tolerance in log likelihood units for detecting better optima
+#' @param ... Additional parameters passed to bbmle::confint.mle2
+#' @return A fitted model
+confint.phylandml <- function(fit, whichparms, tol.newmin = .1, ... )
+{
+	do.call( 'cbind', 
+			lapply( whichparms, function(wp) .confint.phylandml( fit, whichparm = wp, tol.newmin = tol.newmin, ... ) ) 
+		)
+	
 }
 
 summary.phylandml <- function(x, ... )
