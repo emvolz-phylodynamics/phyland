@@ -13,12 +13,13 @@ To install the devel version of the package, type:
 ```{r install, eval=FALSE}
 devtools::install_github("emvolz-phylodynamics/phyland")
 ```
+
 Note that this requires the package *devtools* installed. Or clone the repository and use `R CMD INSTALL <path to repository>`. 
 
 Note if using a Mac, you will need lgfortran and lquadmath libraries installed before hand in order to compile `phydynR`, one of the dependencies.
 
 ### Contributors:
-- Erik Volz (@emvolz-phylodynamics)
+- Erik Volz (@emvolz)
 - Simon Frost (@sdwfrost)
 
 Maintainer: Erik Volz (erik.volz@gmail.com)
