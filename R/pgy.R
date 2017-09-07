@@ -148,7 +148,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	}
 	
 	formals( of0 ) <- theta0
-browser()
+	
 	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
 	theta1 <- exp( coef(mlefit) )
 	
