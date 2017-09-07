@@ -93,7 +93,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	
 	require(bbmle) 
 	if (is.null( design)){
-		design <- matrix( 1:m*m, nrow =m ,ncol =m)
+		design <- matrix( 1:(m*m), nrow =m ,ncol =m)
 		rownames(design) = colnames(design) <- demes
 	}
 	diag(design) <- NA 
@@ -148,7 +148,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	}
 	
 	formals( of0 ) <- theta0
-	
+browser()
 	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
 	theta1 <- exp( coef(mlefit) )
 	
