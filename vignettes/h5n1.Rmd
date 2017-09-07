@@ -13,6 +13,7 @@ A time-stamped phylogeny of Influenza A H5N1 virus from [this BEAST practical](h
 
 ```{r,echo=FALSE}
 suppressPackageStartupMessages(library(phyland))
+suppressPackageStartupMessages(library(ggplot2))
 ```
 
 ```{r}
@@ -31,6 +32,24 @@ tr2
 ```
 
 ```{r}
-tr2.phyland <- phylandml(tr2,delimiter="_")
+tr2.phyland <- phylandml(tr2,delimiter="_",quiet=TRUE)
+```
+
+```{r}
+x <- tr2.phyland$coef[1:7]
+effsizes <- data.frame(Deme=names(x),Ne=x)
+o <- order(effsizes$Ne,decreasing=FALSE)
+effsizes$Deme <- factor(effsizes$Deme,levels=effsizes$Deme[o])
+ggplot(effsizes,aes(x=Deme,y=Ne))+geom_bar(stat="identity")+coord_flip()+scale_y_log10()
+```
+
+
+```{r}
+x <- tr2.phyland$coef[8:length(tr2.phyland$coef)]
+migrates <- data.frame(Demes=names(x),Rate=x)
+migrates <- migrates[migrates$Rate>1e-6,]
+o <- order(migrates$Rate,decreasing=FALSE)
+migrates$Demes <- factor(migrates$Demes,levels=migrates$Demes[o])
+ggplot(migrates,aes(x=Demes,y=Rate))+geom_bar(stat="identity")+coord_flip()
 ```
 
