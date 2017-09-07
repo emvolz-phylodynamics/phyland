@@ -1,0 +1,36 @@
+---
+title: "Influenza A H5N1 example"
+author: "Simon Frost"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{h5n1}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+A time-stamped phylogeny of Influenza A H5N1 virus from [this BEAST practical](https://github.com/sdwfrost/influenza-dynamics-practical-h5n1) is included in the package directory.
+
+```{r,echo=FALSE}
+suppressPackageStartupMessages(library(phyland))
+```
+
+```{r}
+tr <- read.nexus(file=paste(path.package("phyland"),"/H5N1_HA_mcc.nex",sep=""))
+```
+
+```{r}
+metadata <- read.table(file=paste(path.package("phyland"),"/H5N1_locs.txt",sep=""),sep="\t",stringsAsFactors=FALSE)
+```
+
+```{r}
+tr2 <- tr
+yr <- unlist(lapply(strsplit(tr$tip.label,"_"),tail,1))
+tr2$tip.label <- paste("A",seq(1,length(tr2$tip.label)),yr,metadata[match(tr$tip.label,metadata[,1]),2],sep="_")
+tr2
+```
+
+```{r}
+tr2.phyland <- phylandml(tr2,delimiter="_")
+```
+
