@@ -1,14 +1,27 @@
-# phyland
-Phylogeographic inference with structured coalescent models
+# phyland: Phylogeography using structured coalescent models
 
 This package implements classic ['island' models](https://en.wikipedia.org/wiki/Isolation_by_distance) for migration of lineages between discrete demes. Typical usage would involve using a dated phylogeny and location of sampling for each lineage to infer migration rates between different spatial locations by maximum likelihood. The effective population size in each deme is also estimated. A design matrix can be provided to estimate a subset of rates or to test the hypothesis that rates are equal. 
 
 To cite:
 * SDW Frost, Dearlove, B, and Volz, EM, Phylodynamic modeling of the number of host jumps in a zoonosis, in preparation
 
-## Requirements and installation
+# Installing the package
+
 This package is an extension of the [phydynR](https://github.com/emvolz-phylodynamics/phydynR) package and requires the `bbmle` package. 
-To install, first install `phydynR`, and then use `devtools::install_github` or clone the repository and use `R CMD INSTALL <path to repository>`. 
+To install the devel version of the package, type:
+
+```{r install, eval=FALSE}
+devtools::install_github("emvolz-phylodynamics/phyland")
+```
+Note that this requires the package *devtools* installed. Or clone the repository and use `R CMD INSTALL <path to repository>`. 
+
+Note if using a Mac, you will need lgfortran and lquadmath libraries installed before hand in order to compile `phydynR`, one of the dependencies.
+
+### Contributors:
+- Erik Volz (@emvolz-phylodynamics)
+- Simon Frost (@sdwfrost)
+
+Maintainer: Erik Volz (erik.volz@gmail.com)
 
 # Middle East Respiratory Syndrome 
 
