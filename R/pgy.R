@@ -185,7 +185,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 .confint.phylandml <- function(fit, whichparm, tol.newmin = .1, ... )
 {
 	fit$env$whichparm <- whichparm
-	of0 <- fit$env$of0
+	fit$env$of0 <- fit$of0
 	with( fit$env, {
 		nicenames2estnames <- setNames(names(estnames2niceNames), estnames2niceNames)
 		confint( mlefit, parm = nicenames2estnames[whichparm],  method = 'uniroot', tol.newmin = .1, ... )
@@ -216,7 +216,7 @@ confint.phylandml <- function(fit, whichparms, ncpu =1, tol.newmin = .1, ... )
 summary.phylandml <- function(x, ... )
 {
 	cat('Summary of log transformed parameters:\n')
-	X <- attr( summary( x$fit  ), 'coef' )
+	X <- attr( bbmle::summary( x$fit  ), 'coef' )
 	rownames( X ) <- x$estnames2niceNames[ rownames(X) ] 
 	
 	print( X  )
