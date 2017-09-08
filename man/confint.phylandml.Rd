@@ -4,21 +4,21 @@
 \alias{confint.phylandml}
 \title{Profile confidence intervals for fitted phylogeographic model}
 \usage{
-confint.phylandml(fit, whichparms, ncpu = 1, tol.newmin = 0.1, ...)
+confint.phylandml(fit, whichparm, guess_se, np = 6, ...)
 }
 \arguments{
 \item{fit}{A fited model of class *phylandml*}
 
-\item{whichparms}{A vector of type character naming parameters to be profiled. A single parameter is allowed}
+\item{whichparm}{Name of parameter to be profiled}
 
-\item{ncpu}{Will spread the profiling job across multiple processing units of ncpu > 1}
+\item{guess_se}{Initial guess of standard error of parameter}
 
-\item{tol.newmin}{Tolerance in log likelihood units for detecting better optima}
+\item{np}{Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile}
 
-\item{...}{Additional parameters passed to bbmle::confint.mle2}
+\item{cntrl_bnd}{Tuning parameter for number of log likelihood units to search around the optimum when generating profile}
 }
 \value{
-A fitted model
+Likelihood profile
 }
 \description{
 Profile confidence intervals for fitted phylogeographic model

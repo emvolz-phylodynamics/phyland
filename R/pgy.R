@@ -182,39 +182,114 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	o
 }
 
-.confint.phylandml <- function(fit, whichparm, tol.newmin = .1, ... )
-{
-	fit$env$whichparm <- whichparm
-	fit$env$of0 <- fit$of0
-	with( fit$env, {
-		nicenames2estnames <- setNames(names(estnames2niceNames), estnames2niceNames)
-		confint( mlefit, parm = nicenames2estnames[whichparm],  method = 'uniroot', tol.newmin = .1, ... )
-	}) -> ci0
-	data.frame( setNames( list( exp(ci0) ) , whichparm ) )
-}
+
 
 #' Profile confidence intervals for fitted phylogeographic model 
 #'
 #' @param fit A fited model of class *phylandml*
-#' @param whichparms A vector of type character naming parameters to be profiled. A single parameter is allowed 
-#' @param ncpu Will spread the profiling job across multiple processing units of ncpu > 1
-#' @param tol.newmin Tolerance in log likelihood units for detecting better optima
-#' @param ... Additional parameters passed to bbmle::confint.mle2
-#' @return A fitted model
-confint.phylandml <- function(fit, whichparms, ncpu =1, tol.newmin = .1, ... )
+#' @param whichparm Name of parameter to be profiled 
+#' @param guess_se Initial guess of standard error of parameter
+#' @param np Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile
+#' @param cntrl_bnd Tuning parameter for number of log likelihood units to search around the optimum when generating profile
+#' @return Likelihood profile
+confint.phylandml <- function(fit, whichparm, guess_se, np=6,  ... ) #cntrl_bnd = 20,
 {
-	do.call( 'cbind', {
-		if ( ncpu > 1){
-			require(parallel)
-			mclapply( whichparms, function(wp)  .confint.phylandml( fit, whichparm = wp, tol.newmin = tol.newmin, ... ) , mc.cores = floor(ncpu)) 
-		} else{
-			lapply( whichparms, function(wp) .confint.phylandml( fit, whichparm = wp, tol.newmin = tol.newmin, ... ) ) 
-		}
+	nicenames2estnames <- with(environment(fit$of0),  setNames(names(estnames2niceNames), estnames2niceNames) )
+	eparm <- nicenames2estnames[whichparm]
+	
+	.get.val <- function(y){
+		environment(fit$of0)[['y']] <- y 
+		environment(fit$of0)$whichparm <- whichparm
+		environment(fit$of0)$eparm <- eparm
+		environment(fit$of0)$x <- fit$logcoef
+		
+		with( environment(fit$of0), 
+		{
+			x[eparm] <- unname(y)
+			do.call( of0, as.list(x))
+		})
+	}
+	.of1 <- function(y) .get.val(y) - (-logLik(fit$fit)) - cntrl_bnd
+	
+	# search up 
+	#~ 	fub <- uniroot(.of1, lower = fit$logcoef[eparm] , upper = 5 * guess_se + fit$logcoef[eparm] )
+	#~ 	if (is.na(fub$estim.prec)) stop('Upper bound could not be found. Try increasing guess_se.')
+	#~ 	ub <- fub$root 	
+	ub <- fit$logcoef[eparm] + guess_se
+	
+	# search down
+	#~ 	flb <- uniroot(.of1, upper = fit$logcoef[eparm] , lower = -5 * guess_se + fit$logcoef[eparm] )
+	#~ 	if (is.na(flb$estim.prec)) stop('Lower bound could not be found. Try increasing guess_se.')
+	#~ 	lb <- flb$root 
+	lb <- fit$logcoef[eparm] - guess_se 
+	
+	# profile 
+	grid <- seq( lb, ub, l = np )
+print(grid)
+print(exp(grid))
+	.of2 <- function(y, pval){
+		environment(fit$of0)$y <- y
+		environment(fit$of0)$pval <- pval
+		environment(fit$of0)$eparm <- eparm
+		environment(fit$of0)$x <- fit$logcoef
+		with( environment(fit$of0), 
+		{
+			x[names(y)] <- unname(y)
+			x[eparm] <- pval
+			do.call( of0, as.list(x))
+		})
+	}
+	ll <- sapply( grid, function(pval){
+		-optim(par = fit$logcoef[-which(names(fit$logcoef)==eparm) ]
+		 , fn = .of2
+		 , method = 'BFGS'
+		 , pval = pval
+		)$value
 	})
+	
+	grid <- c( grid, fit$logcoef[eparm] )
+	ll <- c( ll, logLik( fit$fit))
+	ll <- ll[ order( grid ) ]
+	grid <- sort(grid)
+	prfun <- approxfun( grid, ll, rule = 2)
+	
+	# search up again
+	.of3 <- function(y) prfun(y)  - (logLik( fit$fit ) - 1.96 )
+	if( tail( ll,1) > (max( ll) - 1.96 ) )
+	  stop('Upper bound could not be found. Try increasing cntrl_bnd')
+	f_ci_ub <- uniroot( .of3, lower = fit$logcoef[eparm], upper = ub )
+	if (is.na( f_ci_ub$estim.prec)) stop('Upper bound could not be found. Try increasing guess_se')
+	ci_ub <- f_ci_ub$root 
+	# search down again 
+	if( ll[1] > (max( ll) - 1.96 ) )
+	  stop('Lower bound could not be found. Try increasing cntrl_bnd')
+	f_ci_lb <- uniroot( .of3, lower = lb, upper = fit$logcoef[eparm] )
+	if (is.na( f_ci_lb$estim.prec)) stop('Lower bound could not be found. Try increasing guess_se')
+	ci_lb <- f_ci_lb$root
+	
+	ci <- data.frame( exp(c(ci_lb, ci_ub) ) )
+	colnames(ci) <- whichparm
+	rownames(ci) <- c('2.5%', '97.5%' )
+	rv <- list( 
+	  ci = ci
+	  , grid = grid
+	  , ll = ll
+	)
+	class(rv) <- c('profile', 'profile.phylandml' )
+	rv
 }
+
+print.profile.phylandml <- function(x, ...){
+	stopifnot( 'profile.phylandml' %in% class(x))
+	print( x$ci)
+	invisible(x) 
+}
+
+
 
 summary.phylandml <- function(x, ... )
 {
+	stopifnot( 'phylandml' %in% class(x))
 	cat('Summary of log transformed parameters:\n')
 	X <- attr( bbmle::summary( x$fit  ), 'coef' )
 	rownames( X ) <- x$estnames2niceNames[ rownames(X) ] 
@@ -234,6 +309,7 @@ summary.phylandml <- function(x, ... )
 
 coef.phylandml <- function( x, ... )
 {
+	stopifnot( 'phylandml' %in% class(x))
 	x$coef 
 }
 
