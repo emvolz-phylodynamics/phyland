@@ -32,7 +32,7 @@ We load the maximum clade credibility tree:
 ```
 require(phyland)
 require(ape)
-mcc <- read.nexus(system.file( 'inst/MERS_274_sCoal.combinedTyped.mcc.tree', package='phyland') )
+mcc <- read.nexus(system.file( 'MERS_274_sCoal.combinedTyped.mcc.tree', package='phyland') )
 ```
 
 Next we fit the model by maximum likelihood. Note that `delimiter` and `index` options tell us where to look in phylogeny tip labels for the deme of sampling, which in this case will be the host species (camel or human). Alternatively, we could provide a regular expression to infer the deme from tip labels (`regex` option). 
@@ -63,7 +63,7 @@ The 'human' and 'camel' parameters provide the effective population size in both
 
 Finally, we can derive confidence intervals using likelihood profiles. The `ncpu` option tells the profiler to spread the job among multiple cpus. 
 ```
-confint( fit, whichparms= c('camel->human', 'human->camel', 'human' ) , ncpu = 3)
+confint( fit, whichparm='camel->human', guess_se=2)
 
        camel..human
 2.5 %      3.912770

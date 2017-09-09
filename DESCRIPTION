@@ -3,7 +3,7 @@ Type: Package
 Title: Phylogeographic analysis using structured coalescent models
 Version: 0.1.0
 Author: c(person("Erik", "Volz", email = "erik.volz@gmail.com", role = c("aut","cre")),person("Simon", "Frost", email = "sdwfrost@gmail.com", role = c("aut")))
-Maintainer: Erik Volz <yerik.volz@gmail.com>
+Maintainer: Erik Volz <erik.volz@gmail.com>
 Description: Phylogeographic analysis using structured coalescent models
 License: MIT + file LICENSE
 Encoding: UTF-8
@@ -12,7 +12,8 @@ RoxygenNote: 6.0.1
 Imports:
     phydynR
 Depends:
-	bbmle
+	bbmle, 
+	akima
 Remotes:
     emvolz-phylodynamics/phydynR,emvolz-phylodynamics/treedater
 BugReports: https://github.com/emvolz-phylodynamics/phyland/issues

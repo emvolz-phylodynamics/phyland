@@ -79,6 +79,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
  , quiet = FALSE
  , ... )
 {
+	require(phydynR)
 	minLL = -Inf
 	tts <- .tips2states ( tree$tip.label, delimiter, index, regex  )
 	n <- length(tree$tip.label) 
@@ -192,7 +193,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 #' @param np Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile
 #' @param cntrl_bnd Tuning parameter for number of log likelihood units to search around the optimum when generating profile
 #' @return Likelihood profile
-confint.phylandml <- function(fit, whichparm, guess_se, np=6,  ... ) #cntrl_bnd = 20,
+confint.phylandml <- function(fit, whichparm, guess_se, np=12,  ... ) #cntrl_bnd = 20,
 {
 	nicenames2estnames <- with(environment(fit$of0),  setNames(names(estnames2niceNames), estnames2niceNames) )
 	eparm <- nicenames2estnames[whichparm]
@@ -251,7 +252,11 @@ print(exp(grid))
 	ll <- c( ll, logLik( fit$fit))
 	ll <- ll[ order( grid ) ]
 	grid <- sort(grid)
-	prfun <- approxfun( grid, ll, rule = 2)
+	#prfun <- approxfun( grid, ll, rule = 2)
+	
+	require(akima)
+	adat <- suppressWarnings( aspline( grid, ll ) )
+	prfun <- approxfun( adat$x, adat$y, rule=2)
 	
 	# search up again
 	.of3 <- function(y) prfun(y)  - (logLik( fit$fit ) - 1.96 )
@@ -278,6 +283,8 @@ print(exp(grid))
 	class(rv) <- c('profile', 'profile.phylandml' )
 	rv
 }
+
+
 
 print.profile.phylandml <- function(x, ...){
 	stopifnot( 'profile.phylandml' %in% class(x))
