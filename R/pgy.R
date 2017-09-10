@@ -77,6 +77,7 @@ library(bbmle)
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
  , method = 'BFGS'
  , quiet = FALSE
+ , ace = FALSE
  , ... )
 {
 	require(phydynR)
@@ -148,7 +149,34 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		-max(o , minLL)
 	}
 	
+	ace0 <- function(...){
+		theta1 <- exp( unlist( as.list( match.call() )[pnames] ) )
+		theta0 <- theta0_dm 
+		theta0[ NeNames ] <- unname( theta1[NeNames] )
+		theta0[ names(muNames2mignames) ] <- unname( theta1[ muNames2mignames ]  )
+		if (any(theta0 < 0)) return(minLL)
+		tfgy <- dm(theta0, x0=NA, t0, t1 )
+		tr <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=TRUE, step_size_res=10)$tree
+		ace.funcs <- lapply( 1:ncol( tr$mstates ), function(i){
+			function(h) {
+				u <- tr$edge[i, 1]
+				v <- tr$edge[i, 2] 
+				h0 <- tr$heights[v]
+				h1 <- tr$heights[u] 
+				if ( h > h1 | h < h0 ) stop(paste( 'Lineage is not extant at given time before most recent sample. Lineage is extant: ', h0, ',', h1 , ' time units before most recent sample.' ) )
+				sapply( 1:tr$m, function(k) {
+					approx( 
+					 c(h0, h1 )
+					 , c(tr$lstates[k,i], tr$mstates[k,i])
+					 , xout = h)$y
+				}) -> x 
+				setNames( x / sum(x) , colnames(tr$sampleStates) )
+			}
+		})
+	}
+	
 	formals( of0 ) <- theta0
+	formals( ace0 ) <- theta0
 	
 	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
 	theta1 <- exp( coef(mlefit) )
@@ -166,6 +194,10 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	vcov_logcoef <- vcov(mlefit )
 	rownames( vcov_logcoef ) = colnames( vcov_logcoef ) <- dmnames2niceNames[ rownames( vcov_logcoef ) ]
 	
+	# state est 
+	ace.funcs <- NULL
+	if (ace) ace.funcs <- do.call( ace0, as.list( coef(mlefit)))
+	
 	o <- list( 
 	  coef = theta2
 	  , logcoef = coef(mlefit)
@@ -178,6 +210,8 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	  , estnames2niceNames = estnames2niceNames
 	  , env = environment()
 	  , of0 = of0
+	  , ace = ace.funcs 
+	  , bdt = bdt 
 	)
 	class(o) <- 'phylandml'
 	o
@@ -261,13 +295,13 @@ print(exp(grid))
 	# search up again
 	.of3 <- function(y) prfun(y)  - (logLik( fit$fit ) - 1.96 )
 	if( tail( ll,1) > (max( ll) - 1.96 ) )
-	  stop('Upper bound could not be found. Try increasing cntrl_bnd')
+	  stop('Upper bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se')
 	f_ci_ub <- uniroot( .of3, lower = fit$logcoef[eparm], upper = ub )
 	if (is.na( f_ci_ub$estim.prec)) stop('Upper bound could not be found. Try increasing guess_se')
 	ci_ub <- f_ci_ub$root 
 	# search down again 
 	if( ll[1] > (max( ll) - 1.96 ) )
-	  stop('Lower bound could not be found. Try increasing cntrl_bnd')
+	  stop('Lower bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se')
 	f_ci_lb <- uniroot( .of3, lower = lb, upper = fit$logcoef[eparm] )
 	if (is.na( f_ci_lb$estim.prec)) stop('Lower bound could not be found. Try increasing guess_se')
 	ci_lb <- f_ci_lb$root
