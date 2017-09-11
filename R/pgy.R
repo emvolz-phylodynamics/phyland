@@ -149,18 +149,27 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		-max(o , minLL)
 	}
 	
-	ace0 <- function(...){
+	.trwithstates <- function(...)
+	{
 		theta1 <- exp( unlist( as.list( match.call() )[pnames] ) )
 		theta0 <- theta0_dm 
 		theta0[ NeNames ] <- unname( theta1[NeNames] )
 		theta0[ names(muNames2mignames) ] <- unname( theta1[ muNames2mignames ]  )
 		if (any(theta0 < 0)) return(minLL)
 		tfgy <- dm(theta0, x0=NA, t0, t1 )
-		tr <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=TRUE, step_size_res=10)$tree
+		colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=TRUE, step_size_res=10)$tree	
+	}
+	ace0 <- function(tr){
+		#note indexed by node number, gives lineage ancestral to node
 		ace.funcs <- lapply( 1:ncol( tr$mstates ), function(i){
 			function(h) {
-				u <- tr$edge[i, 1]
-				v <- tr$edge[i, 2] 
+				ei <- which( tr$edge[,2] == i )
+				if (length( ei )==0 ){
+					# probably the root node 
+					return( setNames( tr$lstates[,i] , colnames(tr$sampleStates )) )
+				}
+				u <- tr$parent[i ] #tr$edge[i, 1]
+				v <- i
 				h0 <- tr$heights[v]
 				h1 <- tr$heights[u] 
 				if ( h > h1 | h < h0 ) stop(paste( 'Lineage is not extant at given time before most recent sample. Lineage is extant: ', h0, ',', h1 , ' time units before most recent sample.' ) )
@@ -176,7 +185,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	}
 	
 	formals( of0 ) <- theta0
-	formals( ace0 ) <- theta0
+	formals( .trwithstates ) <- theta0
 	
 	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
 	theta1 <- exp( coef(mlefit) )
@@ -195,8 +204,14 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	rownames( vcov_logcoef ) = colnames( vcov_logcoef ) <- dmnames2niceNames[ rownames( vcov_logcoef ) ]
 	
 	# state est 
+	bdt <- do.call(.trwithstates, as.list( coef(mlefit )) )
 	ace.funcs <- NULL
-	if (ace) ace.funcs <- do.call( ace0, as.list( coef(mlefit)))
+	acetab <- NULL
+	if (ace) {
+		ace.funcs <- ace0( bdt )
+		acetab <- as.data.frame( t( bdt$lstates ) )
+		colnames( acetab) <- colnames(bdt$sampleStates)
+	}
 	
 	o <- list( 
 	  coef = theta2
@@ -210,7 +225,8 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	  , estnames2niceNames = estnames2niceNames
 	  , env = environment()
 	  , of0 = of0
-	  , ace = ace.funcs 
+	  , ace.funcs = ace.funcs 
+	  , ace = acetab 
 	  , bdt = bdt 
 	)
 	class(o) <- 'phylandml'
