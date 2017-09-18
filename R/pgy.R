@@ -4,7 +4,7 @@ library(bbmle)
 .gen.island.model <- function( demes, xF = 1e4 )
 {
 	m <- length(demes)
-	function(theta, x0, t0, t1, res = 10 ){
+	function(theta, x0, t0, t1, res = 10, integrationMethod=NA ){
 		times <- seq( t0, t1, l = res )
 		
 		# note Y = Ne * xF , births calibrated so co rate is 1/Ne
@@ -30,7 +30,9 @@ library(bbmle)
 		}
 		G <- lapply( 1:res, function(i) g )
 		
-		list( rev(times), f, G, Y )
+		deaths <- lapply( 1:res, function(i) setNames(rep(0, m), demes) )
+		
+		list( rev(times), f, G, Y , NA, deaths=deaths)
 	}	
 }
 
@@ -77,7 +79,8 @@ library(bbmle)
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
  , method = 'BFGS'
  , quiet = FALSE
- , ace = FALSE
+ , start_migrate = NA
+ , start_Ne = NA
  , ... )
 {
 	require(phydynR)
@@ -124,10 +127,11 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	)
 	np <- length( pnames)
 	
-	Ne0 <- bdt$maxHeight 
+	Ne0 <- ifelse( is.na(start_Ne), bdt$maxHeight / (2*length(demes) ), unname(start_Ne) ) 
 	theta0 <- as.list( setNames( rep(1,np) , pnames) )
 	for ( n in NeNames ) theta0[[n]] <- log( Ne0 )
-	for ( n in migrate_names ) theta0[[n]] <- log( bdt$maxHeight / 20  )
+	start_migrate <- ifelse( is.na( start_migrate), (bdt$maxHeight / 100) / length(demes)  , unname(start_migrate) )
+	for ( n in migrate_names ) theta0[[n]] <- log( start_migrate )
 	
 	t1 <- bdt$maxSampleTime
 	t0 <- t1 - bdt$maxHeight-1
@@ -156,17 +160,26 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		theta0[ NeNames ] <- unname( theta1[NeNames] )
 		theta0[ names(muNames2mignames) ] <- unname( theta1[ muNames2mignames ]  )
 		if (any(theta0 < 0)) return(minLL)
-		tfgy <- dm(theta0, x0=NA, t0, t1 )
-		colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=TRUE, step_size_res=10)$tree	
+		#tfgy <- dm(theta0, x0=NA, t0, t1 )
+		#colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=TRUE, step_size_res=10)$tree	
+		phydynR::ace(bdt, theta0, demographic.process.model=dm, x0=NA, t0, res = 1e3
+		  , integrationMethod='lsoda'
+		  , timeOfOriginBoundaryCondition = TRUE
+		  , maxHeight = Inf 
+		  , forgiveAgtY = 1 #can be NA; if 0 returns -Inf if A > Y; if 1, allows A>Y everywhere
+		  , AgtY_penalty = 0 # penalises likelihood if A > Y
+		  , step_size_res = 10 # for adaptive ode solver, set to value < 1
+		)
+
 	}
 	ace0 <- function(tr){
 		#note indexed by node number, gives lineage ancestral to node
-		ace.funcs <- lapply( 1:ncol( tr$mstates ), function(i){
+		ace.funcs <- lapply( 1:ncol( tr$acestates ), function(i){
 			function(h) {
 				ei <- which( tr$edge[,2] == i )
 				if (length( ei )==0 ){
 					# probably the root node 
-					return( setNames( tr$lstates[,i] , colnames(tr$sampleStates )) )
+					return( setNames( tr$acestates[,i] , colnames(tr$sampleStates )) )
 				}
 				u <- tr$parent[i ] #tr$edge[i, 1]
 				v <- i
@@ -176,7 +189,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 				sapply( 1:tr$m, function(k) {
 					approx( 
 					 c(h0, h1 )
-					 , c(tr$lstates[k,i], tr$mstates[k,i])
+					 , c(tr$acestates[k,i], tr$mstates[k,i]) # TODO should probably have a 'upper' acestates
 					 , xout = h)$y
 				}) -> x 
 				setNames( x / sum(x) , colnames(tr$sampleStates) )
@@ -187,7 +200,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	formals( of0 ) <- theta0
 	formals( .trwithstates ) <- theta0
 	
-	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim')
+	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim', skip.hessian=TRUE, ...)
 	theta1 <- exp( coef(mlefit) )
 	
 	#nice names: 
@@ -207,9 +220,9 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	bdt <- do.call(.trwithstates, as.list( coef(mlefit )) )
 	ace.funcs <- NULL
 	acetab <- NULL
-	if (ace) {
-		ace.funcs <- ace0( bdt )
-		acetab <- as.data.frame( t( bdt$lstates ) )
+	{
+		ace.funcs <- NA #ace0( bdt )
+		acetab <- as.data.frame( t( bdt$acestates ) )
 		colnames( acetab) <- colnames(bdt$sampleStates)
 	}
 	
