@@ -5,7 +5,9 @@
 \title{Maximum likelihood inference of migration rates and effective population size between demes}
 \usage{
 phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
-  design = NULL, method = "BFGS", quiet = FALSE, ...)
+  design = NULL, method = "BFGS", quiet = FALSE, start_migrate = NA,
+  start_Ne = NA, Ne_logprior = function(x) 0,
+  migrate_logprior = function(x) 0, nstarts = 1, ncpu = 1, ...)
 }
 \arguments{
 \item{tree}{A time-scaled phylogeny in ape::phylo format}
@@ -16,14 +18,28 @@ phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
 
 \item{regex}{As an alternative to delimiter/index, the location of sampling can be inferred by matching a regular expression string}
 
-\item{design}{A matrix describing which migration rates to estimate and which migration rates are assumed to be equal. Row and column names should correspond to names of demes. Unique integers should specify rates to estimate. If not provided, all rates will be estimated
-method Optimisation method to be used by optim
-quiet If TRUE, will suppress likelihood printing to stdout}
+\item{design}{A matrix describing which migration rates to estimate and which migration rates are assumed to be equal. Row and column names should correspond to names of demes. Unique integers should specify rates to estimate. If not provided, all rates will be estimated}
+
+\item{method}{Optimisation method to be used by optim}
+
+\item{quiet}{If TRUE, will suppress likelihood printing to stdout}
+
+\item{start_migrate}{Optional starting value for optimisation of migration rates}
+
+\item{start_Ne}{Optional starting value for optimisation of Ne}
+
+\item{Ne_logprior}{Optional log prior density for Ne}
+
+\item{migrate_logprior}{Optional log prior density for migration rate}
+
+\item{nstarts}{integer number of starting conditions to generate for optimisation}
+
+\item{ncpu}{On multi-cpu computers, will conduct optimisation from different starting conditions in parallel on this many cpu's}
 
 \item{...}{Additional parameters passed to optim}
 }
 \value{
-A fitted model
+A fitted model with summary and coef methods.
 }
 \description{
 Maximum likelihood inference of migration rates and effective population size between demes
