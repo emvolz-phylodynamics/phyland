@@ -81,6 +81,8 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
  , quiet = FALSE
  , start_migrate = NA
  , start_Ne = NA
+ , Ne_logprior = function(x) 0
+ , migrate_logprior = function(x) 0
  , ... )
 {
 	require(phydynR)
@@ -145,12 +147,16 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		theta0 <- theta0_dm 
 		theta0[ NeNames ] <- unname( theta1[NeNames] )
 		theta0[ names(muNames2mignames) ] <- unname( theta1[ muNames2mignames ]  )
+		lp <- sum( sapply( NeNames, function(x) Ne_logprior( theta1[x] )) ) + 
+		  sum( sapply( muNames2mignames , function(x) migrate_logprior(theta1[x] ) ) )
 		if (any(theta0 < 0)) return(minLL)
 		tfgy <- dm(theta0, x0=NA, t0, t1 )
-		o <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=FALSE, step_size_res=10)
+		suppressWarnings( {
+			o <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=FALSE, step_size_res=10)
+		})
 		if (!quiet) print( c( o, theta0) )
 		if (is.na(o)) return(-minLL)
-		-max(o , minLL)
+		-max(o + lp , minLL)
 	}
 	
 	.trwithstates <- function(...)
