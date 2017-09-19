@@ -1,6 +1,7 @@
 library(phydynR)
 library(bbmle)
 
+
 .gen.island.model <- function( demes, xF = 1e4 )
 {
 	m <- length(demes)
@@ -72,10 +73,16 @@ library(bbmle)
 #' @param index The integer position within tip labels of the sample deme information. If not provided will use the last position, e.g. <accession number>_locationOfSampling
 #' @param regex As an alternative to delimiter/index, the location of sampling can be inferred by matching a regular expression string
 #' @param design A matrix describing which migration rates to estimate and which migration rates are assumed to be equal. Row and column names should correspond to names of demes. Unique integers should specify rates to estimate. If not provided, all rates will be estimated
-#' method Optimisation method to be used by optim
-#' quiet If TRUE, will suppress likelihood printing to stdout
+#' @param method Optimisation method to be used by optim
+#' @param quiet If TRUE, will suppress likelihood printing to stdout
+#' @param start_migrate Optional starting value for optimisation of migration rates
+#' @param start_Ne Optional starting value for optimisation of Ne 
+#' @param Ne_logprior Optional log prior density for Ne
+#' @param migrate_logprior Optional log prior density for migration rate
+#' @param nstarts integer number of starting conditions to generate for optimisation
+#' @param ncpu On multi-cpu computers, will conduct optimisation from different starting conditions in parallel on this many cpu's
 #' @param ... Additional parameters passed to optim
-#' @return A fitted model
+#' @return A fitted model with summary and coef methods.
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
  , method = 'BFGS'
  , quiet = FALSE
@@ -83,6 +90,8 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
  , start_Ne = NA
  , Ne_logprior = function(x) 0
  , migrate_logprior = function(x) 0
+ , nstarts = 1
+ , ncpu = 1
  , ... )
 {
 	require(phydynR)
@@ -130,11 +139,30 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	np <- length( pnames)
 	
 	Ne0 <- ifelse( is.na(start_Ne), bdt$maxHeight / (2*length(demes) ), unname(start_Ne) ) 
+	start_Ne <- Ne0 
+	start_migrate <- ifelse( is.na( start_migrate), (bdt$maxHeight / 100) / length(demes)  , unname(start_migrate) )
 	theta0 <- as.list( setNames( rep(1,np) , pnames) )
 	for ( n in NeNames ) theta0[[n]] <- log( Ne0 )
-	start_migrate <- ifelse( is.na( start_migrate), (bdt$maxHeight / 100) / length(demes)  , unname(start_migrate) )
 	for ( n in migrate_names ) theta0[[n]] <- log( start_migrate )
-	
+	theta0s <- lapply( 1:nstarts, function(x) theta0)
+	if (nstarts > 1 ){
+		require(lhs)
+		lmat <- improvedLHS( n = nstarts, k = np )
+		Ne_lb <- start_Ne / 5
+		Ne_ub <- start_Ne * 5
+		mr_lb <- start_migrate / 5
+		mr_ub <- start_migrate * 5
+		theta_lb <- setNames( rep(1,np) , pnames)
+		theta_lb[NeNames] <- Ne_lb
+		theta_lb[migrate_names] <- mr_lb
+		theta_ub <- setNames( rep(1,np) , pnames)
+		theta_ub[NeNames] <- Ne_ub
+		theta_ub[migrate_names] <- mr_ub
+		theta0s <- lapply( 1:nstarts , function(i){
+			x <- theta_lb + lmat[i,] * (theta_ub - theta_lb )
+			as.list( log( x))
+		})
+	}
 	t1 <- bdt$maxSampleTime
 	t0 <- t1 - bdt$maxHeight-1
 	
@@ -154,7 +182,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 		suppressWarnings( {
 			o <- colik.pik.fgy(bdt, tfgy, timeOfOriginBoundaryCondition=TRUE, maxHeight=Inf, forgiveAgtY=1, AgtY_penalty=0, returnTree=FALSE, step_size_res=10)
 		})
-		if (!quiet) print( c( o, theta0) )
+		if (!quiet) print( c( o, lp, theta0) )
 		if (is.na(o)) return(-minLL)
 		-max(o + lp , minLL)
 	}
@@ -206,7 +234,26 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	formals( of0 ) <- theta0
 	formals( .trwithstates ) <- theta0
 	
-	mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim', skip.hessian=TRUE, ...)
+	if (nstarts > 1){
+		# multiple fits, return best 
+		if (ncpu > 1 ){
+			require(parallel)
+			mlefits <- mclapply( theta0s, function(x){
+				tryCatch( bbmle::mle2(of0 , x, method = method, optimizer='optim', skip.hessian=TRUE, ...)
+				 , error = function(e) NULL)
+			}, mc.cores = ncpu)
+		} else{
+			mlefits <- lapply( theta0s, function(x){
+				tryCatch( bbmle::mle2(of0 , x, method = method, optimizer='optim', skip.hessian=TRUE, ...)
+				 , error = function(e) NULL )
+			})
+		}
+		mlefits <- mlefits [ order(sapply( mlefits, function(f) ifelse(is.null(f), -Inf, bbmle::logLik(f)) ), decreasing=TRUE) ]
+		mlefit <- mlefits[[1]] 
+	} else{
+		mlefit <- bbmle::mle2(of0 , theta0, method = method, optimizer='optim', skip.hessian=TRUE, ...)
+		mlefits <- list( mlefit )
+	}
 	theta1 <- exp( coef(mlefit) )
 	
 	#nice names: 
@@ -247,6 +294,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	  , ace.funcs = ace.funcs 
 	  , ace = acetab 
 	  , bdt = bdt 
+	  , mlefits = mlefits
 	)
 	class(o) <- 'phylandml'
 	o
@@ -260,7 +308,6 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 #' @param whichparm Name of parameter to be profiled 
 #' @param guess_se Initial guess of standard error of parameter
 #' @param np Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile
-#' @param cntrl_bnd Tuning parameter for number of log likelihood units to search around the optimum when generating profile
 #' @return Likelihood profile
 confint.phylandml <- function(fit, whichparm, guess_se, np=12,  ... ) #cntrl_bnd = 20,
 {

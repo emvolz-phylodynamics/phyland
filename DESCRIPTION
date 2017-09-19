@@ -17,7 +17,8 @@ Depends:
 Remotes:
     emvolz-phylodynamics/phydynR,emvolz-phylodynamics/treedater
 BugReports: https://github.com/emvolz-phylodynamics/phyland/issues
-Suggests: knitr,
+Suggests: lhs,
+	knitr,
     rmarkdown,
     testthat,
     covr
