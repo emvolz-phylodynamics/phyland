@@ -44,6 +44,8 @@ library(bbmle)
     times <- seq( t0, t1, l = res )
     
     # note Y = Ne * xF , births calibrated so co rate is 1/Ne
+    y <- setNames( theta[ paste0('Ne', 1:m)  ]  , demes) * unname(xF)
+    Y <- lapply( 1:res, function(i) y)
     
     b <- matrix( 0., nrow = m, ncol = m )
     rownames(b) = colnames(b) <- demes
@@ -55,9 +57,6 @@ library(bbmle)
       }
     }
     f <- lapply( 1:res, function(i) b )
-    
-    y <- setNames( theta[ paste0('Ne', 1:m)  ]  , demes) * unname(xF)
-    Y <- lapply( 1:res, function(i) y)
     
     g <- matrix( 0., nrow =m, ncol = m )
     rownames(g) = colnames(g) <- demes
