@@ -37,6 +37,35 @@ library(bbmle)
 	}	
 }
 
+.gen.island.infection.model <- function( demes, xF = 1e4 )
+{
+  m <- length(demes)
+  function(theta, x0, t0, t1, res = 10 ){
+    times <- seq( t0, t1, l = res )
+    
+    # note Y = Ne * xF , births calibrated so co rate is 1/Ne
+    
+    b <- matrix( 0., nrow = m, ncol = m )
+    rownames(b) = colnames(b) <- demes
+    for (k in 1:m) for (l in 1:m){
+      if (k!=l){
+        b[k,l] <-  y[l] * theta[ paste0( 'mu', l, k ) ]
+      }else{
+        b[k,k] <- theta[paste0('Ne',k)] * xF * xF / 2.
+      }
+    }
+    f <- lapply( 1:res, function(i) b )
+    
+    y <- setNames( theta[ paste0('Ne', 1:m)  ]  , demes) * unname(xF)
+    Y <- lapply( 1:res, function(i) y)
+    
+    g <- matrix( 0., nrow =m, ncol = m )
+    rownames(g) = colnames(g) <- demes
+    G <- lapply( 1:res, function(i) g )
+    
+    list( rev(times), f, G, Y )
+  }	
+}
 
 .tips2states <- function(tips, delimiter='_', index=NULL, regex=NULL)
 {
@@ -84,6 +113,7 @@ library(bbmle)
 #' @param ... Additional parameters passed to optim
 #' @return A fitted model with summary and coef methods.
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
+ , model = 'migration'
  , method = 'BFGS'
  , quiet = FALSE
  , start_migrate = NA
@@ -105,7 +135,15 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	bdt <- DatedTree( tree, sts, ssts, tol = 1.)
 	
 	#log transform all vars
-	dm <- .gen.island.model( demes )
+	if(model=="migration"){
+	  dm <- .gen.island.model( demes )
+	}else if(model=="infection")
+	{
+	  dm <- .gen.island.infection.model(demes)
+	}
+	else{
+	  stop("Model should be either 'migration' or 'infection'")
+	}
 	
 	require(bbmle) 
 	if (is.null( design)){
