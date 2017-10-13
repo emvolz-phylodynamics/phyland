@@ -40,7 +40,7 @@ library(bbmle)
 .gen.island.infection.model <- function( demes, xF = 1e4 )
 {
   m <- length(demes)
-  function(theta, x0, t0, t1, res = 10 ){
+  function(theta, x0, t0, t1, res = 10, integrationMethod=NA ){
     times <- seq( t0, t1, l = res )
     
     # note Y = Ne * xF , births calibrated so co rate is 1/Ne
