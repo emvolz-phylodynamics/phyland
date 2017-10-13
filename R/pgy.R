@@ -63,7 +63,9 @@ library(bbmle)
     rownames(g) = colnames(g) <- demes
     G <- lapply( 1:res, function(i) g )
     
-    list( rev(times), f, G, Y )
+    deaths <- lapply( 1:res, function(i) setNames(rep(0, m), demes) )
+    
+    list( rev(times), f, G, Y , NA, deaths=deaths)
   }	
 }
 
