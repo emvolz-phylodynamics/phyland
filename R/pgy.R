@@ -51,7 +51,7 @@ library(bbmle)
     rownames(b) = colnames(b) <- demes
     for (k in 1:m) for (l in 1:m){
       if (k!=l){
-        b[k,l] <-  y[l] * theta[ paste0( 'mu', l, k ) ]
+        b[k,l] <-  y[k] * theta[ paste0( 'mu', l, k ) ]
       }else{
         b[k,k] <- theta[paste0('Ne',k)] * xF * xF / 2.
       }
