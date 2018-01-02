@@ -81,6 +81,7 @@ library(bbmle)
 #' @param migrate_logprior Optional log prior density for migration rate
 #' @param nstarts integer number of starting conditions to generate for optimisation
 #' @param ncpu On multi-cpu computers, will conduct optimisation from different starting conditions in parallel on this many cpu's
+#' @param minBL Any short branch lengths will be rounded up to this value
 #' @param ... Additional parameters passed to optim
 #' @return A fitted model with summary and coef methods.
 phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=NULL
@@ -92,6 +93,7 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
  , migrate_logprior = function(x) 0
  , nstarts = 1
  , ncpu = 1
+ , minBL = 0.
  , ... )
 {
 	require(phydynR)
@@ -102,6 +104,11 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 	ssts <- tts$ssts 
 	m <- tts$m
 	demes <- tts$demes
+	
+	tree$edge.length <- pmax( tree$edge.length, minBL)
+	if ( min ( tree$edge.length ) <= 0){
+		stop('The provided tree has branch lengths < or == 0. Try setting the minBL option to a small value > 0.')
+	}
 	bdt <- DatedTree( tree, sts, ssts, tol = 1.)
 	
 	#log transform all vars

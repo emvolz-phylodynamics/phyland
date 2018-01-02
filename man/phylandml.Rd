@@ -7,7 +7,8 @@
 phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
   design = NULL, method = "BFGS", quiet = FALSE, start_migrate = NA,
   start_Ne = NA, Ne_logprior = function(x) 0,
-  migrate_logprior = function(x) 0, nstarts = 1, ncpu = 1, ...)
+  migrate_logprior = function(x) 0, nstarts = 1, ncpu = 1, minBL = 0,
+  ...)
 }
 \arguments{
 \item{tree}{A time-scaled phylogeny in ape::phylo format}
@@ -35,6 +36,8 @@ phylandml(tree, delimiter = "_", index = NULL, regex = NULL,
 \item{nstarts}{integer number of starting conditions to generate for optimisation}
 
 \item{ncpu}{On multi-cpu computers, will conduct optimisation from different starting conditions in parallel on this many cpu's}
+
+\item{minBL}{Any short branch lengths will be rounded up to this value}
 
 \item{...}{Additional parameters passed to optim}
 }
