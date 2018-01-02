@@ -315,8 +315,9 @@ phylandml <- function( tree, delimiter= '_', index= NULL, regex = NULL, design=N
 #' @param whichparm Name of parameter to be profiled 
 #' @param guess_se Initial guess of standard error of parameter
 #' @param np Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile
+#' @param ncpu Number of CPUs to use on multi-core machines
 #' @return Likelihood profile
-confint.phylandml <- function(fit, whichparm, guess_se, np=12,  ... ) #cntrl_bnd = 20,
+confint.phylandml <- function(fit, whichparm, guess_se, np=13, ncpu = 1,  ... ) #cntrl_bnd = 20,
 {
 	nicenames2estnames <- with(environment(fit$of0),  setNames(names(estnames2niceNames), estnames2niceNames) )
 	eparm <- nicenames2estnames[whichparm]
@@ -349,8 +350,8 @@ confint.phylandml <- function(fit, whichparm, guess_se, np=12,  ... ) #cntrl_bnd
 	
 	# profile 
 	grid <- seq( lb, ub, l = np )
-print(grid)
-print(exp(grid))
+	
+	
 	.of2 <- function(y, pval){
 		environment(fit$of0)$y <- y
 		environment(fit$of0)$pval <- pval
@@ -363,13 +364,24 @@ print(exp(grid))
 			do.call( of0, as.list(x))
 		})
 	}
-	ll <- sapply( grid, function(pval){
-		-optim(par = fit$logcoef[-which(names(fit$logcoef)==eparm) ]
-		 , fn = .of2
-		 , method = 'BFGS'
-		 , pval = pval
-		)$value
-	})
+	if (ncpu  > 1 ){
+		require(parallel)
+		ll <- unlist( mclapply( grid, function(pval){
+			tryCatch( -optim(par = fit$logcoef[-which(names(fit$logcoef)==eparm) ]
+			 , fn = .of2
+			 , method = 'BFGS'
+			 , pval = pval
+			)$value , error = function(e) NA )
+		} , mc.cores = round(ncpu) ) )
+	} else{
+		ll <- sapply( grid, function(pval){
+			tryCatch( -optim(par = fit$logcoef[-which(names(fit$logcoef)==eparm) ]
+			 , fn = .of2
+			 , method = 'BFGS'
+			 , pval = pval
+			)$value, error = function(e) NA )
+		})
+	}
 	
 	grid <- c( grid, fit$logcoef[eparm] )
 	ll <- c( ll, logLik( fit$fit))
@@ -377,23 +389,48 @@ print(exp(grid))
 	grid <- sort(grid)
 	#prfun <- approxfun( grid, ll, rule = 2)
 	
+	sumdat <- data.frame( Parameter.value = exp(grid), Profile.log.likelihood = ll )
+	print(sumdat)
+	
 	require(akima)
 	adat <- suppressWarnings( aspline( grid, ll ) )
 	prfun <- approxfun( adat$x, adat$y, rule=2)
 	
 	# search up again
+	success <- TRUE
 	.of3 <- function(y) prfun(y)  - (logLik( fit$fit ) - 1.96 )
-	if( tail( ll,1) > (max( ll) - 1.96 ) )
-	  stop('Upper bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se')
-	f_ci_ub <- uniroot( .of3, lower = fit$logcoef[eparm], upper = ub )
-	if (is.na( f_ci_ub$estim.prec)) stop('Upper bound could not be found. Try increasing guess_se')
-	ci_ub <- f_ci_ub$root 
+	if( tail( ll,1) > (max( ll) - 1.96 ) ) {
+	  cat("
+*** Upper bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se  ***
+	  ")
+	  success <- FALSE 
+	}
+	f_ci_ub <- tryCatch( uniroot( .of3, lower = fit$logcoef[eparm], upper = ub )
+	 , error = function(e) list(root=NA, estim.prec = NA) )
+	if (is.na( f_ci_ub$estim.prec)) {
+		cat("
+*** Upper bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se  ***
+	  ")
+	  success <- FALSE 
+	}
+	ci_ub <- ifelse(success, f_ci_ub$root , NA )
+	
 	# search down again 
-	if( ll[1] > (max( ll) - 1.96 ) )
-	  stop('Lower bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se')
-	f_ci_lb <- uniroot( .of3, lower = lb, upper = fit$logcoef[eparm] )
-	if (is.na( f_ci_lb$estim.prec)) stop('Lower bound could not be found. Try increasing guess_se')
-	ci_lb <- f_ci_lb$root
+	if( ll[1] > (max( ll) - 1.96 ) ){
+	  cat("
+*** Lower bound could not be found. Rate may be indistinguishable from zero. Inspect $grid and $ll. Try increasing guess_se  ***
+	  ")
+	  success <- FALSE 
+	}
+	f_ci_lb <- tryCatch( uniroot( .of3, lower = lb, upper = fit$logcoef[eparm] )
+	  , error = function(e) list(root=NA, estim.prec= NA))
+	if (is.na( f_ci_lb$estim.prec)) {
+		cat("
+*** Lower bound could not be found. Rate may be indistinguishable from zero. Inspect $grid and $ll. Try increasing guess_se  ***
+	   ")
+	   success <- FALSE
+	}
+	ci_lb <- ifelse(success, f_ci_lb$root, NA )
 	
 	ci <- data.frame( exp(c(ci_lb, ci_ub) ) )
 	colnames(ci) <- whichparm
@@ -402,11 +439,18 @@ print(exp(grid))
 	  ci = ci
 	  , grid = grid
 	  , ll = ll
+	  , sumdat = sumdat 
 	)
 	class(rv) <- c('profile', 'profile.phylandml' )
 	rv
 }
 
+plot.confint.phylandml <- function(x, ...){
+	stopifnot( 'profile.phylandml' %in% class( x) )
+	with( x$sumdat, plot( Parameter.value, Profile.log.likelihood, 'l', ... ))
+	with( x$sumdat, points( Parameter.value, Profile.log.likelihood))
+	invisible(x)
+}
 
 
 print.profile.phylandml <- function(x, ...){

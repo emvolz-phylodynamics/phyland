@@ -4,7 +4,7 @@
 \alias{confint.phylandml}
 \title{Profile confidence intervals for fitted phylogeographic model}
 \usage{
-confint.phylandml(fit, whichparm, guess_se, np = 12, ...)
+confint.phylandml(fit, whichparm, guess_se, np = 13, ncpu = 1, ...)
 }
 \arguments{
 \item{fit}{A fited model of class *phylandml*}
@@ -14,6 +14,8 @@ confint.phylandml(fit, whichparm, guess_se, np = 12, ...)
 \item{guess_se}{Initial guess of standard error of parameter}
 
 \item{np}{Integer number of spline points to be used for interpolation. Increase this value to get more accurate profile}
+
+\item{ncpu}{Number of CPUs to use on multi-core machines}
 }
 \value{
 Likelihood profile
