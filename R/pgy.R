@@ -455,6 +455,9 @@ plot.confint.phylandml <- function(x, ...){
 
 print.profile.phylandml <- function(x, ...){
 	stopifnot( 'profile.phylandml' %in% class(x))
+	cat( 'Likelihood profile:\n')
+	print( x$sumdat )
+	cat( 'Confidence interval:\n')
 	print( x$ci)
 	invisible(x) 
 }
