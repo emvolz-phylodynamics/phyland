@@ -394,12 +394,12 @@ confint.phylandml <- function(fit, whichparm, guess_se, np=13, ncpu = 1,  ... ) 
 	
 	require(akima)
 	adat <- suppressWarnings( aspline( grid, ll ) )
-	prfun <- approxfun( adat$x, adat$y, rule=2)
+	prfun <- approxfun( adat$x, adat$y, rule=2) #robust to NA, may return NA at endpoints
 	
 	# search up again
 	success <- TRUE
 	.of3 <- function(y) prfun(y)  - (logLik( fit$fit ) - 1.96 )
-	if( tail( ll,1) > (max( ll) - 1.96 ) ) {
+	if( tail( na.omit( ll ),1) > (max( na.omit(ll) ) - 1.96 ) ) { #CHECK for NA 
 	  cat("
 *** Upper bound could not be found. Likelihood surface may be flat. Inspect $grid and $ll. Try increasing guess_se  ***
 	  ")
@@ -416,7 +416,7 @@ confint.phylandml <- function(fit, whichparm, guess_se, np=13, ncpu = 1,  ... ) 
 	ci_ub <- ifelse(success, f_ci_ub$root , NA )
 	
 	# search down again 
-	if( ll[1] > (max( ll) - 1.96 ) ){
+	if( na.omit(ll)[1] > (max( na.omit(ll) ) - 1.96 ) ){ #CHECK FOR NA 
 	  cat("
 *** Lower bound could not be found. Rate may be indistinguishable from zero. Inspect $grid and $ll. Try increasing guess_se  ***
 	  ")
