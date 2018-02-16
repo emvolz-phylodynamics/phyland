@@ -496,3 +496,36 @@ print.phylandml <- function(x, ... )
 }
 
 
+#' Bootstrap of MLE 
+#'
+#' @param trees A list of trees of type ape::phylo
+#' @param ncpu  Number of CPUs
+#' @param ... Additional arguments passed to phylandml
+#' @return Confidence intervals and bootstrap MLEs
+boot.phylandml <- function(trees, ncpu = 1, ... ){
+	require(parallel)
+	fits <- mclapply( trees, function(tree){
+		phylandml( tree, ncpu= 1, ...)
+	}, mc.cores = ncpu)
+	cnms <- names( fits[[1]]$coef )
+	clist <- lapply( fits, function(f) tryCatch( f$coef[cnms] , error = function(e) NA ) )
+	ctab <- do.call( cbind, clist)
+	ci <-  data.frame( 
+	   lb = sapply( cnms, function(x) quantile( na.omit(ctab[ x, ]), prob = .025 ) )
+	   , ub = sapply( cnms, function(x) quantile( na.omit(ctab[ x, ]), prob = .975 ) )
+	)
+	colnames(ci) <- c('2.5%', '97.5%' )
+	rownames(ci) <- cnms 
+	o = list( ci = ci
+	 , coef = ctab
+	 ,  fits = fits )
+	class(o) <- 'boot.phylandml' 
+	o
+}
+
+print.boot.phylandml <- function(x, ...){
+	stopifnot( 'boot.phylandml' %in% class(x))
+	print( x$ci )
+	invisible(x) 
+}
+
